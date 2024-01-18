@@ -9,6 +9,11 @@ export const Count = 2;
 export const ChainedCount = 16;
 export const CKB_NODE = "https://mainnet.ckb.dev/rpc";
 export const CKB_INDEXER = "https://mainnet.ckb.dev";
+
+export const CKB_LIGHT_CLIENT = 'http://localhost:9000'
+
+export const LIGHT_MODE = false
+
 export const MaxFeeRate = 30000;
 export const TO_ADDRESS = ""
 
@@ -19,6 +24,7 @@ export const collector = new Collector({
   ckbNodeUrl: CKB_NODE,
   ckbIndexerUrl: CKB_INDEXER,
 });
+
 
 export const infoType: CKBComponents.Script = {
   ...getInscriptionInfoTypeScript(true),

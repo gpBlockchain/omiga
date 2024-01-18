@@ -16,16 +16,24 @@ import {
   initConfig,
   infoType,
   ChainedCount,
-  MaxFeeRate
+  MaxFeeRate, LIGHT_MODE, CKB_LIGHT_CLIENT
 } from "./config";
-import { getInscriptionInfoTypeScript } from "../src/constants";
-import { append0x } from "../src/utils";
-import { InscriptionInfoException } from "../src/exceptions";
+import { FEE } from "../src/constants";
 
 const sleep = (delay: number) =>
   new Promise((resolve) => setTimeout(resolve, delay));
 
 const mint = async (index?: number, count?: number) => {
+  let collector = new Collector({
+    ckbNodeUrl: CKB_NODE,
+    ckbIndexerUrl: CKB_INDEXER,
+  });
+  if (LIGHT_MODE){
+     collector = new Collector({
+      ckbNodeUrl: CKB_LIGHT_CLIENT,
+      ckbIndexerUrl: CKB_LIGHT_CLIENT,
+    });
+  }
   try {
     const address = collector
       .getCkb()
@@ -38,11 +46,14 @@ const mint = async (index?: number, count?: number) => {
 
     const mintLimit = 10;
     const decimal = 8;
+    let  txFee = FEE;
     // 使用动态gasfee
-    const feeRate = await collector.getFeeRate();
-
-    if(feeRate.median > `0x${BigInt(MaxFeeRate).toString(16)}`){
-      await sleep(100000)
+    if (!LIGHT_MODE) {
+      let feeRate = await collector.getFeeRate();
+      if (feeRate.median > `0x${BigInt(MaxFeeRate).toString(16)}`) {
+        await sleep(100000)
+      }
+      txFee = BigInt(feeRate.median)
     }
     const secp256k1Dep: CKBComponents.CellDep = {
       outPoint: {
@@ -58,7 +69,7 @@ const mint = async (index?: number, count?: number) => {
       address,
       inscriptionId,
       mintLimit: BigInt(mintLimit) * BigInt(10 ** decimal),
-      feeRate: BigInt(feeRate.median),
+      feeRate: txFee,
       cellDeps: [secp256k1Dep, inscriptionInfoCellDep],
       chainedCount: ChainedCount,
       index,
@@ -81,14 +92,23 @@ const mint = async (index?: number, count?: number) => {
         unsignedTx
       );
 
-      let txHash = await collector
-        .getCkb()
-        .rpc.sendTransaction(signedTx, "passthrough");
-      console.info(
-        `Loop-Index-${index}-${i}: Inscription has been minted with tx hash ${txHash}, ${rawHash}`
-      );
-
-      lastTxHash = txHash;
+      if (LIGHT_MODE){
+        let txHash = await collector
+            .getCkb()
+            .rpc.sendTransaction(signedTx);
+        console.info(
+            `Loop-Index-${index}-${i}: Inscription has been minted with tx hash ${txHash}, ${rawHash}`
+        );
+        lastTxHash = txHash;
+      }else {
+        let txHash = await collector
+            .getCkb()
+            .rpc.sendTransaction(signedTx, "passthrough");
+        console.info(
+            `Loop-Index-${index}-${i}: Inscription has been minted with tx hash ${txHash}, ${rawHash}`
+        );
+        lastTxHash = txHash;
+      }
     }
 
     for (let i = 0; i < 20; i++) {

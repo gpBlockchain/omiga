@@ -2,13 +2,28 @@ import { Collector } from "../src/collector";
 import { buildFirstMintTx } from "../src/inscription";
 import { AddressPrefix } from "@nervosnetwork/ckb-sdk-utils";
 import { blockchain } from "@ckb-lumos/base";
-import { CKB_INDEXER, CKB_NODE, SECP256K1_PRIVATE_KEY, Count, inscriptionInfoCellDep, infoType, initConfig } from "./config";
+import {
+  CKB_INDEXER,
+  CKB_NODE,
+  SECP256K1_PRIVATE_KEY,
+  Count,
+  inscriptionInfoCellDep,
+  infoType,
+  initConfig,
+  LIGHT_MODE, CKB_LIGHT_CLIENT
+} from "./config";
 
 const mint = async (index?: number) => {
-  const collector = new Collector({
+  let collector = new Collector({
     ckbNodeUrl: CKB_NODE,
     ckbIndexerUrl: CKB_INDEXER,
   });
+  if (LIGHT_MODE) {
+    collector = new Collector({
+      ckbNodeUrl: CKB_LIGHT_CLIENT,
+      ckbIndexerUrl: CKB_LIGHT_CLIENT,
+    })
+  }
   const address = collector
     .getCkb()
     .utils.privateKeyToAddress(SECP256K1_PRIVATE_KEY, {
@@ -52,12 +67,17 @@ const mint = async (index?: number) => {
     unsignedTx
   );
 
-  let txHash = await collector
-    .getCkb()
-    .rpc.sendTransaction(signedTx, "passthrough");
-  console.info(
-    `First-Index-${index}: Inscription has been minted with tx hash ${txHash}`
-  );
+  if (LIGHT_MODE) {
+    let txHash = await collector.getCkb().rpc.sendTransaction(signedTx)
+    console.info(`First-Index-${index}: Inscription has been minted with tx hash ${txHash}`)
+  } else {
+    let txHash = await collector
+        .getCkb()
+        .rpc.sendTransaction(signedTx, "passthrough");
+    console.info(
+        `First-Index-${index}: Inscription has been minted with tx hash ${txHash}`
+    );
+  }
 };
 
 const batch = async () => {
